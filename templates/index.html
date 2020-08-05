@@ -32,12 +32,14 @@
             </div>
             <!-- Image observation and control -->
             <div class="col">
-                <img id="frame" src="http://127.0.0.1:5000//frame?id=1">
+                <canvas id="canvas"></canvas>
                 <br/><br/>
                 <button type="button" class="btn btn-secondary" onclick="nextFrame()">Next</button>
                 <button type="button" class="btn btn-secondary" onclick="previousFrame()">Previous</button>
                 <button type="button" class="btn btn-secondary" onclick="autoPlay()">Play</button>
                 <button type="button" class="btn btn-secondary" onclick="stopAutoPlay()">Pause</button>
+                <br/><br/>
+                <button type="button" class="btn btn-secondary" onclick="clearCanvas()">Clear</button>
             </div>
         </div>
     </div>
@@ -48,7 +50,21 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
     <script>
         /**
-         * ****************
+         * ***********************
+         * ***********************
+         * Webpage Initialization
+         * ***********************
+         * ***********************
+         * **/
+        async function initPage() {
+            initCanvas();
+            await showFrame(0);
+        }
+
+        window.addEventListener('load', () => initPage(), false);
+
+        /**
+         * *****************
          * *****************
          * Frame Control
          * *****************
@@ -72,6 +88,17 @@
             });
         }
 
+        async function showFrame(id) {
+            // fetch frame information
+            const response = await fetch('http://127.0.0.1:5000//frame//info?id='+id);
+            const frameInfo = await response.json();
+            // fetch frame image
+            let imgSrc = 'http://127.0.0.1:5000//frame?id=' + id;
+            updateInfoPanel(frameInfo);
+            updateCanvas(imgSrc, frameInfo);
+            return 0;
+        }
+
         function updateInfoPanel(frameInfo) {
             document.getElementById("frame_id").innerHTML = "Current Frame: " + frameId;
             numFrames = frameInfo["num_frames"];
@@ -82,24 +109,13 @@
 
         async function nextFrame() {
             frameId = (frameId + 1) % numFrames;
-            document.getElementById('frame').src='http://127.0.0.1:5000//frame?id='+frameId;
-
-            const response = await fetch('http://127.0.0.1:5000//frame//info?id='+frameId);
-            const frameInfo = await response.json();
-            updateInfoPanel(frameInfo);
-
+            await showFrame(frameId);
             return 0;
         }
 
         async function previousFrame() {
             frameId = Math.max(0, frameId - 1);
-            document.getElementById('frame').src='http://127.0.0.1:5000//frame?id='+frameId;
-            document.getElementById("frame_id").innerHTML = "Current Frame: " + frameId;
-
-            const response = await fetch('http://127.0.0.1:5000//frame//info?id='+frameId);
-            const frameInfo = await response.json();
-            updateInfoPanel(frameInfo);
-
+            await showFrame(frameId);
             return 0;
         }
 
@@ -115,6 +131,112 @@
         function setFrameTime() {
             frameTime = document.getElementById("frame_time").value.valueOf();
         }
+
+        /**
+         * *****************
+         * *****************
+         * Canvas Control
+         * *****************
+         * *****************
+         * **/
+        var canvas;
+        var ctx;
+        var canvasSnapshot;
+        var canvasBackgroundImg;
+        var currentFrameImage;
+        var currentFrameInfo;
+        var currentBoxes = [];  // existed bounding boxes created by the user
+        var drawingBox = [0, 0, 0, 0];    // the bounding box that the user is creating by moving mouse
+        var isDraggingBox = false; // true if the user is moving the mouse to locate a bounding box
+
+        function initCanvas() {
+            canvas = document.getElementById("canvas");
+            ctx = canvas.getContext("2d");
+
+            // init background of the canvas
+            canvasBackgroundImg = new Image();
+            canvasBackgroundImg.onload = function(event) {
+                ctx.canvas.width = canvasBackgroundImg.width;
+                ctx.canvas.height = canvasBackgroundImg.height;
+                canvas.width = canvasBackgroundImg.width;
+                canvas.height = canvasBackgroundImg.height;
+                ctx.drawImage(canvasBackgroundImg, 0, 0);
+            };
+            canvasBackgroundImg.style.display = "block";
+
+            canvas.addEventListener('mousedown', startBoundingBoxPos, false);
+            canvas.addEventListener('mouseup', endBoundingBoxPos, false);
+            canvas.addEventListener('mousemove', dragBoundingBoxPos, false);
+        }
+
+        function getCanvasCoordinates(event) {
+            let x = event.clientX - canvas.getBoundingClientRect().left;
+            let y = event.clientY - canvas.getBoundingClientRect().top;
+            return {x: x, y: y};
+        }
+
+        function takeSnapshot() {
+            canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        function restoreSnapshot() {
+            ctx.putImageData(canvasSnapshot, 0, 0);
+        }
+
+        function drawBoundingBox(xMin, xMax, yMin, yMax) {
+            ctx.beginPath();
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = "3";
+            ctx.rect(xMin, yMin, xMax - xMin, yMax - yMin);
+            ctx.stroke();
+            ctx.font = "10px Arial";
+        }
+
+        function startBoundingBoxPos(event) {
+            isDraggingBox = true;
+            let pos = getCanvasCoordinates(event);
+            drawingBox = [pos.x, 0, pos.y, 0];
+            takeSnapshot();
+        }
+
+        function dragBoundingBoxPos(event) {
+            if(isDraggingBox) {
+                restoreSnapshot();
+                let pos = getCanvasCoordinates(event);
+                drawingBox[1] = pos.x;
+                drawingBox[3] = pos.y;
+                drawBoundingBox(drawingBox[0], drawingBox[1], drawingBox[2], drawingBox[3]);
+            }
+        }
+
+        function endBoundingBoxPos(event) {
+            isDraggingBox = false;
+            // save the new box
+            currentBoxes.push(drawingBox);
+        }
+
+        function updateCanvas(imgSrc, frameInfo) {
+            currentFrameImage = imgSrc;
+            currentFrameInfo = frameInfo;
+            canvasBackgroundImg.src = imgSrc;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            updateCanvas(currentFrameImage, currentFrameInfo);
+        }
+
+        /**
+         * ******************
+         * ******************
+         * Server Connection
+         * ******************
+         * ******************
+         * **/
+        function updateBoundingBoxes(boundingBoxes) {
+
+        }
+
     </script>
 </body>
 </html>
