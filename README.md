@@ -1,12 +1,12 @@
 # Simple-Human-in-the-Loop-ML-Interface
 
 ## Description
-A simple webpage-based human interface to faciliate human-in-the-loop machine learning research, which allows researchers to:
+A simple webpage-based human interface to facilitate human-in-the-loop machine learning research, which allows researchers to:
 
 - remotely interact with (provide feedback) learning agent on server/clusters 
-- easily and efficiently annote image
+- easily and efficiently annotate images
 - replay any trajectory with specific frame time
-- easily customize the interface to meet their needs (the interface is implmented with basic python Flask, HTML and JavaScript) 
+- easily customize the interface to meet their needs (the interface is implemented with basic python Flask, HTML and JavaScript) 
 
 ![An example](img/example.gif)
 ![An example](img/example.png)
