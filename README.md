@@ -16,6 +16,7 @@ A simple webpage-based human interface to faciliate human-in-the-loop machine le
 ```
 python app.py
 ```
+- Go to [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
 - Control and provide feedback through keyboard or buttons
 - Create bounding boxes by simple click-hold-drag-release
 
