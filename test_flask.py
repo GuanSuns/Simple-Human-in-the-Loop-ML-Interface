@@ -46,7 +46,8 @@ def get_frame_info():
         'num_frames': server_data['num_frames'],
         'frame_id': frame_id,
         'rgb_obs_height': server_data['rgb_obs_shape'][0],
-        'rgb_obs_width': server_data['rgb_obs_shape'][1]
+        'rgb_obs_width': server_data['rgb_obs_shape'][1],
+        'action': server_data['actions'][frame_id]
     })
     return jsonify(frame_info)
 
@@ -73,7 +74,7 @@ def read_data():
 
     data['rgb_obs_shape'] = data['rgb_frames'][0].shape
     data['num_frames'] = len(data['rgb_frames'])
-    data['frame_info'] = [{'bounding_boxes': []} for _ in range(data['num_frames'])]
+    data['frame_info'] = [{'bounding_boxes': [], 'human_feedback':0, 'is_evaluated':0} for _ in range(data['num_frames'])]
 
     # convert rgb array to png files (this makes future life easier) and save in temporary directory
     img_dir = os.path.join(app.static_folder, "tmp")

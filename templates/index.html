@@ -28,6 +28,7 @@
                 <p id="frame_num">Total Frame: 0</p>
                 <p id="frame_shape">Frame Shape: 0*0</p>
                 <p id="human_feedback">Human Feedback: no feedback</p>
+                <p id="frame_action">Agent Action: 0</p>
                 <form>
                     <div class="form-group row">
                         <label for="frame_time" class="col-sm-6 col-form-label">Frame Time (millisecond):</label>
@@ -38,7 +39,7 @@
                 </form>
                 <br/>
                 <ul id="bounding-box-list" class="list-group">
-                    <li class="list-group-item list-group-item-dark">Bounding Boxes (Numpy Coordinate)</li>
+                    <li class="list-group-item list-group-item-dark">Bounding Boxes (xMin, xMax, yMin, yMax)</li>
                     <li class="list-group-item">Loading data...</li>
                 </ul>
             </div>
@@ -119,8 +120,18 @@
 
         function updateInfoPanel(frameInfo) {
             document.getElementById("frame_id").value = frameId;
+            // display action
+            document.getElementById("frame_action").innerHTML = "Agent Action: " + frameInfo["action"];
+            // display human feedback
+            if(frameInfo["is_evaluated"].valueOf() === 1) {
+                document.getElementById("human_feedback").innerHTML = "Human Feedback: " + frameInfo["human_feedback"];
+            } else {
+                document.getElementById("human_feedback").innerHTML = "Human Feedback: " + "no feedback";
+            }
+            // display total frame number
             numFrames = frameInfo["num_frames"];
             document.getElementById("frame_num").innerHTML = "Total Frames: " + numFrames;
+            // display observation shape
             document.getElementById("frame_shape").innerHTML = "Frame Shape: " + frameInfo["rgb_obs_height"]
                 + "*" + frameInfo["rgb_obs_width"];
             // generate bounding box list
@@ -134,7 +145,7 @@
 
                 if(i === 0) {
                     li.setAttribute("class", "list-group-item list-group-item-dark");
-                    li.innerHTML = "Bounding Boxes (Numpy Coordinate)";
+                    li.innerHTML = "Bounding Boxes (xMin, xMax, yMin, yMax)";
 
                     if(boundingBoxes.length === 0) {
                         let liNoData = document.createElement("li");
@@ -319,6 +330,59 @@
             }
         }
 
+        async function updateFrameFeedback(feedback, id, is_evaluated=true) {
+            const rawResponse = await fetch("http://127.0.0.1:5000/frame/info?id="+id, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({"human_feedback": feedback, "is_evaluated": is_evaluated})});
+            const response = await rawResponse.json();
+            // notify the user if upload fails
+            if(!response.success) {
+                alert("Fail to upload bounding boxes to server.");
+            } else {
+                document.getElementById("human_feedback").innerHTML = "Human Feedback: " + feedback;
+            }
+        }
+
+        /**
+         * ******************
+         * ******************
+         * Keyboard Input
+         * ******************
+         * ******************
+         * **/
+        async function keyboardInputHandler(event) {
+            let pressedKey = event.keyCode;
+            // 'a': positive feedback
+            if(String.fromCharCode(pressedKey) === "A") {
+                await updateFrameFeedback(1, frameId);
+            }
+            // 's': negative feedback
+            else if(String.fromCharCode(pressedKey) === "S") {
+                await updateFrameFeedback(-1, frameId);
+            }
+            // 'd': zero feedback
+            else if(String.fromCharCode(pressedKey) === "D") {
+                await updateFrameFeedback(0, frameId);
+            }
+            // 'c': clear existing feedback
+            else if(String.fromCharCode(pressedKey) === "C") {
+                await updateFrameFeedback(0, frameId, false);
+            }
+            // ' ': skip and next frame
+            else if(String.fromCharCode(pressedKey) === " ") {
+                await nextFrame();
+            }
+            // 'p': play/pause
+            else if(String.fromCharCode(pressedKey) === "P") {
+                alert('p was pressed');
+            }
+        }
+
+        document.addEventListener('keydown', (event) => keyboardInputHandler(event));
     </script>
 </body>
 </html>
