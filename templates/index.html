@@ -53,6 +53,7 @@
                 <button type="button" class="btn btn-secondary" onclick="stopAutoPlay()">Pause</button>
                 <br/><br/>
                 <button type="button" class="btn btn-secondary" onclick="clearCanvas()">Clear</button>
+                <button type="button" class="btn btn-secondary" onclick="saveAll()">Save All</button>
             </div>
         </div>
     </div>
@@ -236,7 +237,7 @@
         function drawBoundingBox(xMin, xMax, yMin, yMax) {
             ctx.beginPath();
             ctx.strokeStyle = "red";
-            ctx.lineWidth = "3";
+            ctx.lineWidth = "2";
             ctx.rect(xMin, yMin, xMax - xMin, yMax - yMin);
             ctx.stroke();
             ctx.font = "10px Arial";
@@ -330,7 +331,7 @@
             }
         }
 
-        async function updateFrameFeedback(feedback, id, is_evaluated=true) {
+        async function updateFrameFeedback(feedback, id, is_evaluated=1) {
             const rawResponse = await fetch("http://127.0.0.1:5000/frame/info?id="+id, {
                 method: "POST",
                 headers: {
@@ -343,7 +344,21 @@
             if(!response.success) {
                 alert("Fail to upload bounding boxes to server.");
             } else {
-                document.getElementById("human_feedback").innerHTML = "Human Feedback: " + feedback;
+                if(is_evaluated === 1) {
+                    document.getElementById("human_feedback").innerHTML = "Human Feedback: " + feedback;
+                } else {
+                    document.getElementById("human_feedback").innerHTML = "Human Feedback: no feedback";
+                }
+
+            }
+        }
+
+        async function saveAll() {
+            const rawResponse = await fetch("http://127.0.0.1:5000/save", {method: "POST"});
+            const response = await rawResponse.json();
+            // notify the user if upload fails
+            if(!response.success) {
+                alert("Fail to save data on server.");
             }
         }
 
@@ -370,15 +385,23 @@
             }
             // 'c': clear existing feedback
             else if(String.fromCharCode(pressedKey) === "C") {
-                await updateFrameFeedback(0, frameId, false);
+                await updateFrameFeedback(0, frameId, 0);
             }
-            // ' ': skip and next frame
-            else if(String.fromCharCode(pressedKey) === " ") {
+            // '>': go to next frame
+            else if(pressedKey === 190) {
                 await nextFrame();
+            }
+            // '<': go to previous frame
+            else if(pressedKey === 188) {
+                await previousFrame();
             }
             // 'p': play/pause
             else if(String.fromCharCode(pressedKey) === "P") {
-                alert('p was pressed');
+                if(autoPlaying) {
+                    stopAutoPlay();
+                } else {
+                    autoPlay();
+                }
             }
         }
 

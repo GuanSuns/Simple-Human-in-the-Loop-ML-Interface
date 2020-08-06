@@ -1,4 +1,6 @@
 .idea
 .ipynb_checkpoints
 static/tmp
+human_study_data
+human_study_data/*
 

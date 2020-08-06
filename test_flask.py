@@ -8,7 +8,6 @@ import cv2
 import gym
 from flask import Flask, render_template, jsonify, request, send_from_directory
 
-
 app = Flask(__name__)
 
 server_data = None
@@ -66,6 +65,22 @@ def update_frame_info():
     return jsonify({'success': True}), 200, {'ContentType': 'application/json'}
 
 
+# noinspection PyBroadException
+@app.route('/save', methods=['POST'])
+def save_human_data():
+    try:
+        save_dir = os.path.join(app.root_path, "human_study_data")
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        save_file = os.path.join(save_dir, 'human_data.pickle')
+        with open(save_file, 'wb') as file:
+            pickle.dump(server_data, file, protocol=pickle.HIGHEST_PROTOCOL)
+    except Exception as e:
+        print('[ERROR] Fail to save server data:', str(e))
+        return jsonify({'success': False}), 400, {'ContentType': 'application/json'}
+    return jsonify({'success': True}), 200, {'ContentType': 'application/json'}
+
+
 def read_data():
     """Load data on server"""
     print('[INFO] Loading server resources ...')
@@ -74,7 +89,8 @@ def read_data():
 
     data['rgb_obs_shape'] = data['rgb_frames'][0].shape
     data['num_frames'] = len(data['rgb_frames'])
-    data['frame_info'] = [{'bounding_boxes': [], 'human_feedback':0, 'is_evaluated':0} for _ in range(data['num_frames'])]
+    data['frame_info'] = [{'bounding_boxes': [], 'human_feedback': 0, 'is_evaluated': 0} for _ in
+                          range(data['num_frames'])]
 
     # convert rgb array to png files (this makes future life easier) and save in temporary directory
     img_dir = os.path.join(app.static_folder, "tmp")
