@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Human Interface</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark" style="width: 100%;height:100%;">
+        <a class="navbar-brand">Human Interface</a>
+    </nav>
+    <br/><br/>
+    <div id="content" class="container" style="width: 100%;">
+        <div class="row">
+            <!-- General information panel -->
+            <div class="col">
+                <form>
+                    <div class="form-group row">
+                        <label for="frame_id" class="col-sm-6 col-form-label">Current Frame:</label>
+                        <div class="col-sm-4">
+                            <input type="number" class="input form-control" id="frame_id" min="0" value="0" onchange="setFrameId()">
+                        </div>
+                    </div>
+                </form>
+                <p id="frame_num">Total Frame: 0</p>
+                <p id="frame_shape">Frame Shape: 0*0</p>
+                <p id="human_feedback">Human Feedback: no feedback</p>
+                <p id="frame_action">Agent Action: 0</p>
+                <form>
+                    <div class="form-group row">
+                        <label for="frame_time" class="col-sm-6 col-form-label">Frame Time (millisecond):</label>
+                        <div class="col-sm-4">
+                            <input type="number" class="input form-control" id="frame_time" min="0" value="200" onchange="setFrameTime()">
+                        </div>
+                    </div>
+                </form>
+                <br/>
+                <ul id="bounding-box-list" class="list-group">
+                    <li class="list-group-item list-group-item-dark">Bounding Boxes (xMin, xMax, yMin, yMax)</li>
+                    <li class="list-group-item">Loading data...</li>
+                </ul>
+                <ul id="tracking-box-list" class="list-group">
+                    <li class="list-group-item list-group-item-dark">Tracking Boxes (xMin, xMax, yMin, yMax)</li>
+                    <li class="list-group-item">Loading data...</li>
+                </ul>
+            </div>
+            <!-- Image observation and control -->
+            <div class="col">
+                <canvas id="canvas"></canvas>
+                <br/><br/>
+                <button type="button" class="btn btn-secondary" onclick="nextFrame()">Next</button>
+                <button type="button" class="btn btn-secondary" onclick="previousFrame()">Previous</button>
+                <button type="button" class="btn btn-secondary" onclick="autoPlay()">Play</button>
+                <button type="button" class="btn btn-secondary" onclick="stopAutoPlay()">Pause</button>
+                <br/><br/>
+                <button type="button" class="btn btn-secondary" onclick="clearCanvas()">Clear</button>
+                <button type="button" class="btn btn-secondary" onclick="saveAll()">Save All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+    <script>
+        /**
+         * ***********************
+         * ***********************
+         * Webpage Initialization
+         * ***********************
+         * ***********************
+         * **/
+        async function initPage() {
+            initCanvas();
+            await showFrame(0);
+        }
+
+        window.addEventListener('load', () => initPage(), false);
+
+        /**
+         * *****************
+         * *****************
+         * Frame Control
+         * *****************
+         * *****************
+         * **/
+        var frameId = 0;
+        var numFrames = 6;
+        var autoPlaying = false;
+        var frameTime = 200;
+
+        // Safe async setInterval function
+        function setIntervalAsync(func, interval) {
+            let startTime = Date.now();
+            func().then(() => {
+                if(autoPlaying) {
+                    let endTime = Date.now();
+                    // guarantee a fixed delay of interval
+                    let waitTime = Math.max(0, interval - (endTime - startTime));
+                    setTimeout(() => setIntervalAsync(func, interval), waitTime);
+                }
+            });
+        }
+
+        async function showFrame(id) {
+            // fetch frame information
+            const response = await fetch("http://127.0.0.1:5000/frame/info?id="+id);
+            const frameInfo = await response.json();
+            // fetch frame image
+            let imgSrc = "http://127.0.0.1:5000/frame?id=" + id;
+            updateInfoPanel(frameInfo);
+            updateCanvas(imgSrc, frameInfo);
+            return 0;
+        }
+
+        function removeAllChildNodes(parent) {
+            while (parent.firstChild) {
+                parent.removeChild(parent.firstChild);
+            }
+        }
+
+        function updateInfoPanel(frameInfo) {
+            document.getElementById("frame_id").value = frameId;
+            // display action
+            document.getElementById("frame_action").innerHTML = "Agent Action: " + frameInfo["action"];
+            // display human feedback
+            if(frameInfo["is_evaluated"].valueOf() === 1) {
+                document.getElementById("human_feedback").innerHTML = "Human Feedback: " + frameInfo["human_feedback"];
+            } else {
+                document.getElementById("human_feedback").innerHTML = "Human Feedback: " + "no feedback";
+            }
+            // display total frame number
+            numFrames = frameInfo["num_frames"];
+            document.getElementById("frame_num").innerHTML = "Total Frames: " + numFrames;
+            // display observation shape
+            document.getElementById("frame_shape").innerHTML = "Frame Shape: " + frameInfo["rgb_obs_height"]
+                + "*" + frameInfo["rgb_obs_width"];
+            // generate bounding box list
+            let boundingBoxes = frameInfo["bounding_boxes"];
+            let boundingBoxList = document.getElementById("bounding-box-list");
+            removeAllChildNodes(boundingBoxList); // remove old items
+            for(let i=0; i<boundingBoxes.length+1; i++) {
+                let li = document.createElement("li");
+                li.setAttribute("class", "list-group-item");
+                boundingBoxList.appendChild(li);
+
+                if(i === 0) {
+                    li.setAttribute("class", "list-group-item list-group-item-dark");
+                    li.innerHTML = "Bounding Boxes (xMin, xMax, yMin, yMax)";
+
+                    if(boundingBoxes.length === 0) {
+                        let liNoData = document.createElement("li");
+                        liNoData.setAttribute("class", "list-group-item");
+                        boundingBoxList.appendChild(liNoData);
+                        liNoData.innerHTML = "No record";
+                    }
+                } else {
+                    li.innerHTML = boundingBoxes[i-1];
+                }
+            }
+            // generate tracking box list
+            let trackingBoxes = frameInfo["tracking_boxes"];
+            let trackingBoxesList = document.getElementById("tracking-box-list");
+            removeAllChildNodes(trackingBoxesList); // remove old items
+            for(let i=0; i<trackingBoxes.length+1; i++) {
+                let li = document.createElement("li");
+                li.setAttribute("class", "list-group-item");
+                trackingBoxesList.appendChild(li);
+
+                if(i === 0) {
+                    li.setAttribute("class", "list-group-item list-group-item-dark");
+                    li.innerHTML = "Tracking Boxes (xMin, xMax, yMin, yMax)";
+
+                    if(trackingBoxes.length === 0) {
+                        let liNoData = document.createElement("li");
+                        liNoData.setAttribute("class", "list-group-item");
+                        trackingBoxesList.appendChild(liNoData);
+                        liNoData.innerHTML = "No record";
+                    }
+                } else {
+                    li.innerHTML = trackingBoxes[i-1];
+                }
+            }
+        }
+
+        async function nextFrame() {
+            frameId = (frameId + 1) % numFrames;
+            await showFrame(frameId);
+            return 0;
+        }
+
+        async function previousFrame() {
+            frameId = Math.max(0, frameId - 1);
+            await showFrame(frameId);
+            return 0;
+        }
+
+        function autoPlay() {
+            autoPlaying = true;
+            setIntervalAsync(nextFrame, frameTime);
+        }
+
+        function stopAutoPlay() {
+            autoPlaying = false;
+        }
+
+        function setFrameTime() {
+            frameTime = document.getElementById("frame_time").value.valueOf();
+        }
+
+        function setFrameId() {
+            console.log("setFrameId");
+            frameId = document.getElementById("frame_id").value.valueOf();
+            showFrame(frameId);
+        }
+
+        /**
+         * *****************
+         * *****************
+         * Canvas Control
+         * *****************
+         * *****************
+         * **/
+        var canvas;
+        var ctx;
+        var canvasSnapshot;
+        var canvasImg;
+        var currentBoundingBoxes = [];
+        var currentTrackingBoxes = [];
+        var drawingBox = [0, 0, 0, 0];    // the bounding box that the user is creating by moving mouse
+        var isDraggingBox = false; // true if the user is moving the mouse to locate a bounding box
+
+        function initCanvas() {
+            canvas = document.getElementById("canvas");
+            ctx = canvas.getContext("2d");
+
+            // init background of the canvas
+            canvasImg = new Image();
+            canvasImg.onload = redrawCanvas;
+            canvasImg.style.display = "block";
+
+            canvas.addEventListener("mousedown", startBoundingBoxPos, false);
+            canvas.addEventListener("mouseup", endBoundingBoxPos, false);
+            canvas.addEventListener("mousemove", dragBoundingBoxPos, false);
+        }
+
+        function getCanvasCoordinates(event) {
+            let x = event.clientX - canvas.getBoundingClientRect().left;
+            let y = event.clientY - canvas.getBoundingClientRect().top;
+            return {x: x, y: y};
+        }
+
+        function takeSnapshot() {
+            canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+
+        function restoreSnapshot() {
+            ctx.putImageData(canvasSnapshot, 0, 0);
+        }
+
+        function drawBoundingBox(xMin, xMax, yMin, yMax, color="red") {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = "2";
+            ctx.rect(xMin, yMin, xMax - xMin, yMax - yMin);
+            ctx.stroke();
+            ctx.font = "10px Arial";
+        }
+
+        function startBoundingBoxPos(event) {
+            isDraggingBox = true;
+            let pos = getCanvasCoordinates(event);
+            drawingBox = [Math.round(pos.x), 0, Math.round(pos.y), 0];
+            takeSnapshot();
+        }
+
+        function dragBoundingBoxPos(event) {
+            if(isDraggingBox) {
+                restoreSnapshot();
+                let pos = getCanvasCoordinates(event);
+                drawingBox[1] = Math.round(pos.x);
+                drawingBox[3] = Math.round(pos.y);
+                drawBoundingBox(drawingBox[0], drawingBox[1], drawingBox[2], drawingBox[3]);
+            }
+        }
+
+        function endBoundingBoxPos(event) {
+            isDraggingBox = false;
+            // save the new box
+            let pos = getCanvasCoordinates(event);
+            drawingBox[1] = Math.round(pos.x);
+            drawingBox[3] = Math.round(pos.y);
+            // save the new box in numpy image coordinate system
+            currentBoundingBoxes.push([drawingBox[2], drawingBox[3], drawingBox[0], drawingBox[1]]);
+            // upload to server
+            updateBoundingBoxes(currentBoundingBoxes, frameId, true);
+        }
+
+        function redrawCanvas(event) {
+            ctx.canvas.width = canvasImg.width;
+            ctx.canvas.height = canvasImg.height;
+            canvas.width = canvasImg.width;
+            canvas.height = canvasImg.height;
+            ctx.drawImage(canvasImg, 0, 0);
+
+            if(currentBoundingBoxes.length !== 0) {
+                for (let i = 0; i < currentBoundingBoxes.length; i++) {
+                    // numpy image and html canvas image have different coordinate system
+                    let numpyBox = currentBoundingBoxes[i];
+                    drawBoundingBox(numpyBox[2], numpyBox[3], numpyBox[0], numpyBox[1]);
+                }
+            } else {
+                for (let i = 0; i < currentTrackingBoxes.length; i++) {
+                    // numpy image and html canvas image have different coordinate system
+                    let numpyBox = currentTrackingBoxes[i];
+                    drawBoundingBox(numpyBox[2], numpyBox[3], numpyBox[0], numpyBox[1], "blue");
+                }
+            }
+        }
+
+        function updateCanvas(imgSrc, frameInfo) {
+            currentBoundingBoxes = [];
+            let boundingBoxes = frameInfo["bounding_boxes"];
+            for (let i = 0; i < boundingBoxes.length; i++) {
+                currentBoundingBoxes.push(boundingBoxes[i]);
+            }
+            currentTrackingBoxes = [];
+            let trackingBoxes = frameInfo["tracking_boxes"];
+            for (let i = 0; i < trackingBoxes.length; i++) {
+                currentTrackingBoxes.push(trackingBoxes[i]);
+            }
+            // this operation will trigger redraw asynchronously
+            canvasImg.src = imgSrc;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentBoundingBoxes = [];
+            // upload to server
+            updateBoundingBoxes(currentBoundingBoxes, frameId, true);
+        }
+
+        /**
+         * ******************
+         * ******************
+         * Server Connection
+         * ******************
+         * ******************
+         * **/
+        async function updateBoundingBoxes(boundingBoxes, id, updateWebpage=false) {
+            const rawResponse = await fetch("http://127.0.0.1:5000/frame/info?id="+id, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({"bounding_boxes": boundingBoxes})});
+            const response = await rawResponse.json();
+            // notify the user if upload fails
+            if(!response.success) {
+                alert("Fail to upload bounding boxes to server.");
+            }
+
+            // update webpage if required
+            if(updateWebpage) {
+                await showFrame(frameId);
+            }
+        }
+
+        async function updateFrameFeedback(feedback, id, is_evaluated=1) {
+            const rawResponse = await fetch("http://127.0.0.1:5000/frame/info?id="+id, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({"human_feedback": feedback, "is_evaluated": is_evaluated})});
+            const response = await rawResponse.json();
+            // notify the user if upload fails
+            if(!response.success) {
+                alert("Fail to upload bounding boxes to server.");
+            } else {
+                if(is_evaluated === 1) {
+                    document.getElementById("human_feedback").innerHTML = "Human Feedback: " + feedback;
+                } else {
+                    document.getElementById("human_feedback").innerHTML = "Human Feedback: no feedback";
+                }
+
+            }
+        }
+
+        async function saveAll() {
+            const rawResponse = await fetch("http://127.0.0.1:5000/save", {method: "POST"});
+            const response = await rawResponse.json();
+            // notify the user if upload fails
+            if(!response.success) {
+                alert("Fail to save data on server.");
+            }
+        }
+
+        /**
+         * ******************
+         * ******************
+         * Keyboard Input
+         * ******************
+         * ******************
+         * **/
+        async function keyboardInputHandler(event) {
+            let pressedKey = event.keyCode;
+            // 'a': positive feedback
+            if(String.fromCharCode(pressedKey) === "A") {
+                await updateFrameFeedback(1, frameId);
+            }
+            // 's': negative feedback
+            else if(String.fromCharCode(pressedKey) === "S") {
+                await updateFrameFeedback(-1, frameId);
+            }
+            // 'd': zero feedback
+            else if(String.fromCharCode(pressedKey) === "D") {
+                await updateFrameFeedback(0, frameId);
+            }
+            // 'c': clear existing feedback
+            else if(String.fromCharCode(pressedKey) === "C") {
+                await updateFrameFeedback(0, frameId, 0);
+            }
+            // '>': go to next frame
+            else if(pressedKey === 190) {
+                await nextFrame();
+            }
+            // '<': go to previous frame
+            else if(pressedKey === 188) {
+                await previousFrame();
+            }
+            // 'p': play/pause
+            else if(String.fromCharCode(pressedKey) === "P") {
+                if(autoPlaying) {
+                    stopAutoPlay();
+                } else {
+                    autoPlay();
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (event) => keyboardInputHandler(event));
+    </script>
+</body>
+</html>
