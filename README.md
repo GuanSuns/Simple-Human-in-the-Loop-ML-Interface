@@ -32,6 +32,10 @@ You can define your own keyboard setting in function keyboardInputHandler in the
 - P: auto play/stop auto play 
 
 
+## Some Examples of Customizing the Interface
+- Object Tracking: [object-tracking-example](https://github.com/GuanSuns/Simple-Human-in-the-Loop-ML-Interface/blob/master/examples/object_tracking)
+![An example](examples/img/example-tracking.gif)
+
 ## Reference
 - Simple Image Annotator: [https://github.com/sgp715/simple_image_annotator](https://github.com/sgp715/simple_image_annotator)
 - Explanation Augmented Feedback in Human-in-the-Loop Reinforcement Learning: [https://arxiv.org/abs/2006.14804](https://arxiv.org/abs/2006.14804)

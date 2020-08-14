@@ -38,12 +38,12 @@
                     </div>
                 </form>
                 <br/>
-                <ul id="bounding-box-list" class="list-group">
-                    <li class="list-group-item list-group-item-dark">Bounding Boxes (xMin, xMax, yMin, yMax)</li>
+                <ul id="bounding-box-list" class="list-group" style="width: 80%;">
+                    <li class="list-group-item list-group-item-warning">Bounding Boxes (xMin, xMax, yMin, yMax)</li>
                     <li class="list-group-item">Loading data...</li>
                 </ul>
-                <ul id="tracking-box-list" class="list-group">
-                    <li class="list-group-item list-group-item-dark">Tracking Boxes (xMin, xMax, yMin, yMax)</li>
+                <ul id="tracking-box-list" class="list-group" style="width: 80%;">
+                    <li class="list-group-item list-group-item-primary">Tracking Boxes (xMin, xMax, yMin, yMax)</li>
                     <li class="list-group-item">Loading data...</li>
                 </ul>
             </div>
@@ -149,7 +149,7 @@
                 boundingBoxList.appendChild(li);
 
                 if(i === 0) {
-                    li.setAttribute("class", "list-group-item list-group-item-dark");
+                    li.setAttribute("class", "list-group-item list-group-item-danger");
                     li.innerHTML = "Bounding Boxes (xMin, xMax, yMin, yMax)";
 
                     if(boundingBoxes.length === 0) {
@@ -172,7 +172,7 @@
                 trackingBoxesList.appendChild(li);
 
                 if(i === 0) {
-                    li.setAttribute("class", "list-group-item list-group-item-dark");
+                    li.setAttribute("class", "list-group-item list-group-item-primary");
                     li.innerHTML = "Tracking Boxes (xMin, xMax, yMin, yMax)";
 
                     if(trackingBoxes.length === 0) {
