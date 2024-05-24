@@ -38,5 +38,5 @@ You can define your own keyboard setting in function keyboardInputHandler in the
 
 ## Reference
 - Simple Image Annotator: [https://github.com/sgp715/simple_image_annotator](https://github.com/sgp715/simple_image_annotator)
-- Explanation Augmented Feedback in Human-in-the-Loop Reinforcement Learning: [https://arxiv.org/abs/2006.14804](https://arxiv.org/abs/2006.14804)
+- Widening the Pipeline in Human-Guided Reinforcement Learning with Explanation and Context-Aware Data Augmentation: [https://arxiv.org/abs/2006.14804](https://arxiv.org/abs/2006.14804)
 
